@@ -2,7 +2,9 @@ package com.ems.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -46,11 +48,20 @@ public class AttendanceServiceImpl implements AttendanceService {
 
 	@Override
 	public List<Attendance> getAttendanceByEmployee(String employeeId) {
-		return attendanceRepository.findByEmployeeId(employeeId);
+		return attendanceRepository.findByEmployeeId(employeeId).stream()
+				.filter(this::isRealAttendance)
+				.sorted(Comparator.comparing(Attendance::getDate, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+				.collect(Collectors.toList());
 	}
 
 	@Override
 	public List<Attendance> getAttendanceByDate(LocalDate date) {
-		return attendanceRepository.findByDate(date);
+		return attendanceRepository.findByDate(date).stream()
+				.filter(this::isRealAttendance)
+				.collect(Collectors.toList());
+	}
+
+	private boolean isRealAttendance(Attendance attendance) {
+		return attendance != null && (attendance.getRemarks() == null || !attendance.getRemarks().startsWith("Demo attendance seed"));
 	}
 }

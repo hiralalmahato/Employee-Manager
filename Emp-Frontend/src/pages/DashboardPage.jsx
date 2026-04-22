@@ -120,8 +120,19 @@ export default function DashboardPage() {
 
     loadOverview()
 
+    const refreshInterval = window.setInterval(() => {
+      if (mounted && !isEmployee) {
+        dashboardService.getOverview().then((data) => {
+          if (mounted) {
+            setOverview(data)
+          }
+        }).catch(() => {})
+      }
+    }, 15000)
+
     return () => {
       mounted = false
+      window.clearInterval(refreshInterval)
     }
   }, [isEmployee])
 

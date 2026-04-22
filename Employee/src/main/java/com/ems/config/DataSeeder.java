@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -33,6 +34,9 @@ public class DataSeeder {
 
 	private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
+	@Value("${app.seed-demo-data:false}")
+	private boolean seedDemoData;
+
 	@Bean
 	CommandLineRunner seedData(
 		UserRepository userRepository,
@@ -43,6 +47,11 @@ public class DataSeeder {
 		PasswordEncoder passwordEncoder
 	) {
 		return args -> {
+			if (!seedDemoData) {
+				log.info("Demo data seeding is disabled; skipping seed initialization.");
+				return;
+			}
+
 			try {
 				if (userRepository.count() == 0) {
 					userRepository.saveAll(List.of(

@@ -56,9 +56,15 @@ public class DashboardServiceImpl implements DashboardService {
 		List<LeaveTrendDto> leaveTrend = new ArrayList<>();
 		List<DepartmentMixDto> departmentMix = new ArrayList<>();
 		List<RecentActivityDto> recentActivities = new ArrayList<>();
+		List<Attendance> realAttendanceRecords = attendanceRepository.findAll().stream()
+				.filter(this::isRealAttendance)
+				.toList();
+		List<LeaveRequest> realLeaveRequests = leaveRepository.findAll().stream()
+				.filter(this::isRealLeave)
+				.toList();
 
 		for (AttendanceStatus status : AttendanceStatus.values()) {
-			attendanceByStatus.put(status.name(), attendanceRepository.countByDateAndStatus(today, status));
+			attendanceByStatus.put(status.name(), countAttendanceByStatus(realAttendanceRecords, today, status));
 		}
 
 		for (Department department : departmentRepository.findAll()) {
@@ -71,8 +77,8 @@ public class DashboardServiceImpl implements DashboardService {
 		for (LocalDate currentDate = startOfTrend; !currentDate.isAfter(today); currentDate = currentDate.plusDays(1)) {
 			attendanceTrend.add(AttendanceTrendDto.builder()
 				.name(dayLabelFormatter.format(currentDate))
-				.present(attendanceRepository.countByDateAndStatus(currentDate, AttendanceStatus.PRESENT))
-				.absent(attendanceRepository.countByDateAndStatus(currentDate, AttendanceStatus.ABSENT))
+				.present(countAttendanceByStatus(realAttendanceRecords, currentDate, AttendanceStatus.PRESENT))
+				.absent(countAttendanceByStatus(realAttendanceRecords, currentDate, AttendanceStatus.ABSENT))
 				.build());
 		}
 
@@ -81,7 +87,7 @@ public class DashboardServiceImpl implements DashboardService {
 			leavesByMonth.put(monthStart, 0L);
 		}
 
-		for (LeaveRequest leave : leaveRepository.findAll()) {
+		for (LeaveRequest leave : realLeaveRequests) {
 			LocalDate createdDate = leave.getCreatedAt() != null ? leave.getCreatedAt().toLocalDate() : leave.getFromDate();
 			if (createdDate == null) {
 				continue;
@@ -112,7 +118,7 @@ public class DashboardServiceImpl implements DashboardService {
 		);
 
 		recentActivities.addAll(
-			attendanceRepository.findAll().stream()
+			realAttendanceRecords.stream()
 				.map(attendance -> RecentActivityDto.builder()
 					.category("Attendance")
 					.title(attendance.getStatus().name().replace('_', ' '))
@@ -123,7 +129,7 @@ public class DashboardServiceImpl implements DashboardService {
 		);
 
 		recentActivities.addAll(
-			leaveRepository.findAll().stream()
+			realLeaveRequests.stream()
 				.map(leave -> RecentActivityDto.builder()
 					.category("Leave")
 					.title(leave.getStatus().name().replace('_', ' '))
@@ -152,9 +158,9 @@ public class DashboardServiceImpl implements DashboardService {
 
 		return DashboardOverviewDto.builder()
 			.totalEmployees(employeeRepository.count())
-			.presentToday(attendanceRepository.countByDateAndStatus(today, AttendanceStatus.PRESENT))
-			.absentToday(attendanceRepository.countByDateAndStatus(today, AttendanceStatus.ABSENT))
-			.pendingLeaves(leaveRepository.countByStatus(com.ems.model.LeaveStatus.PENDING))
+			.presentToday(countAttendanceByStatus(realAttendanceRecords, today, AttendanceStatus.PRESENT))
+			.absentToday(countAttendanceByStatus(realAttendanceRecords, today, AttendanceStatus.ABSENT))
+			.pendingLeaves(realLeaveRequests.stream().filter(leave -> leave.getStatus() == com.ems.model.LeaveStatus.PENDING).count())
 			.departments(departmentRepository.count())
 			.payrollRecords(payrollRepository.count())
 			.attendanceByStatus(attendanceByStatus)
@@ -173,5 +179,20 @@ public class DashboardServiceImpl implements DashboardService {
 
 	private LocalDateTime timestamp(LocalDateTime primary, LocalDateTime fallback) {
 		return primary != null ? primary : fallback;
+	}
+
+	private long countAttendanceByStatus(List<Attendance> attendanceRecords, LocalDate date, AttendanceStatus status) {
+		return attendanceRecords.stream()
+				.filter(attendance -> date.equals(attendance.getDate()))
+				.filter(attendance -> attendance.getStatus() == status)
+				.count();
+	}
+
+	private boolean isRealAttendance(Attendance attendance) {
+		return attendance != null && (attendance.getRemarks() == null || !attendance.getRemarks().startsWith("Demo attendance seed"));
+	}
+
+	private boolean isRealLeave(LeaveRequest leaveRequest) {
+		return leaveRequest != null && (leaveRequest.getRemarks() == null || !leaveRequest.getRemarks().startsWith("Demo leave seed"));
 	}
 }
