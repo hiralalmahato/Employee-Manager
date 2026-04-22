@@ -55,6 +55,73 @@ export default function DashboardPage() {
   useEffect(() => {
     let mounted = true
 
+    const refreshAdminDashboard = async () => {
+      if (!mounted || isEmployee) {
+        return
+      }
+
+      try {
+        const data = await dashboardService.getOverview()
+        if (mounted) {
+          setOverview(data)
+        }
+      } catch (exception) {
+        if (mounted) {
+          setError(exception?.response?.data?.message || 'Unable to refresh dashboard overview.')
+        }
+      }
+    }
+
+    const refreshEmployeeDashboard = async () => {
+      if (!mounted || !isEmployee) {
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError('')
+
+        const profile = await employeeService.getMe()
+        if (!mounted) {
+          return
+        }
+
+        const [attendanceData, leaveData, departments] = await Promise.all([
+          attendanceService.getByEmployee(profile.id),
+          leaveService.getMine(),
+          departmentService.getAll(),
+        ])
+
+        if (!mounted) {
+          return
+        }
+
+        setEmployee(profile)
+        setDepartmentName(
+          (Array.isArray(departments) ? departments : []).find((department) => department.id === profile.departmentId)?.name || profile.departmentId || 'Not assigned',
+        )
+        setAttendanceRecords(Array.isArray(attendanceData) ? attendanceData : [])
+        setLeaveRecords(Array.isArray(leaveData) ? leaveData : [])
+      } catch (exception) {
+        if (mounted) {
+          setError(exception?.response?.data?.message || 'Unable to refresh your employee dashboard.')
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    const refreshDashboard = async () => {
+      if (isEmployee) {
+        await refreshEmployeeDashboard()
+        return
+      }
+
+      await refreshAdminDashboard()
+    }
+
     const loadEmployeeWorkspace = async () => {
       setLoading(true)
       setError('')
@@ -120,18 +187,19 @@ export default function DashboardPage() {
 
     loadOverview()
 
+    const handleDataUpdated = () => {
+      refreshDashboard()
+    }
+
+    window.addEventListener('ems:data-updated', handleDataUpdated)
+
     const refreshInterval = window.setInterval(() => {
-      if (mounted && !isEmployee) {
-        dashboardService.getOverview().then((data) => {
-          if (mounted) {
-            setOverview(data)
-          }
-        }).catch(() => {})
-      }
-    }, 15000)
+      refreshDashboard()
+    }, 5000)
 
     return () => {
       mounted = false
+      window.removeEventListener('ems:data-updated', handleDataUpdated)
       window.clearInterval(refreshInterval)
     }
   }, [isEmployee])

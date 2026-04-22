@@ -123,6 +123,7 @@ export default function LeavesPage() {
         employeeId: currentEmployee?.id || form.employeeId,
         employeeName: currentEmployee?.fullName || form.employeeName,
       })
+      window.dispatchEvent(new Event('ems:data-updated'))
       await loadLeaves()
     } catch (exception) {
       setError(exception?.response?.data?.message || 'Unable to apply for leave.')
@@ -140,6 +141,7 @@ export default function LeavesPage() {
       const payload = { approvedBy: user?.fullName || user?.name || user?.email || 'Admin', remarks: action === 'approve' ? 'Approved from dashboard' : 'Rejected from dashboard' }
       await leaveService[action === 'approve' ? 'approve' : 'reject'](id, payload)
       setMessage(`Leave request ${action}d successfully.`)
+      window.dispatchEvent(new Event('ems:data-updated'))
       await loadLeaves()
     } catch (exception) {
       setError(exception?.response?.data?.message || `Unable to ${action} leave.`)

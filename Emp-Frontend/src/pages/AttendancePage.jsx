@@ -355,6 +355,7 @@ export default function AttendancePage() {
       await attendanceService.mark(form)
       setMessage('Attendance marked successfully.')
       setForm(defaultForm)
+      window.dispatchEvent(new Event('ems:data-updated'))
     } catch (exception) {
       setError(exception?.response?.data?.message || 'Unable to mark attendance.')
     } finally {
