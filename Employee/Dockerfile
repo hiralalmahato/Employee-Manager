@@ -1,22 +1,25 @@
-FROM maven:3.9.14-eclipse-temurin-21 AS build
+
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-COPY pom.xml mvnw ./
-COPY .mvn .mvn
-RUN chmod +x mvnw
+# Copy all project files
+COPY . .
 
-COPY src src
-RUN ./mvnw clean package -DskipTests
+# Build the Spring Boot jar
+RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:21-jre-jammy AS runtime
+
+
+FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /app
 
-ENV JAVA_OPTS=""
+# Copy jar from build stage
+COPY --from=build /app/target/*.jar app.jar
 
-COPY --from=build /app/target/employee-management-system-0.0.1-SNAPSHOT.jar app.jar
-
+# Expose port
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
