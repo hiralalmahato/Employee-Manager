@@ -1,6 +1,11 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+const localBaseURL = 'http://localhost:8080/api'
+const productionBaseURL = 'https://employee-manager-our6.onrender.com/api'
+
+const baseURL = (
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? localBaseURL : productionBaseURL)
+).replace(/\/$/, '')
 
 const api = axios.create({
   baseURL,
